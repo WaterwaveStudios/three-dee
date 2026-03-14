@@ -28,6 +28,29 @@ namespace ThreeDee.Grid
             }
 
             CreateGroundCollider();
+            CreateBorderWalls();
+        }
+
+        private void CreateBorderWalls()
+        {
+            float half = _gridWidth * _cellSize / 2f;
+            float height = 4f;
+            float thickness = 0.5f;
+            float span = _gridWidth * _cellSize + thickness * 2f;
+
+            SpawnWall("Border_North", new Vector3(0f, height / 2f, half + thickness / 2f),  new Vector3(span, height, thickness));
+            SpawnWall("Border_South", new Vector3(0f, height / 2f, -(half + thickness / 2f)), new Vector3(span, height, thickness));
+            SpawnWall("Border_East",  new Vector3(half + thickness / 2f, height / 2f, 0f),   new Vector3(thickness, height, span));
+            SpawnWall("Border_West",  new Vector3(-(half + thickness / 2f), height / 2f, 0f), new Vector3(thickness, height, span));
+        }
+
+        private void SpawnWall(string wallName, Vector3 position, Vector3 size)
+        {
+            var go = new GameObject(wallName);
+            go.transform.SetParent(transform);
+            go.transform.position = position;
+            var col = go.AddComponent<BoxCollider>();
+            col.size = size;
         }
 
         private void CreateGroundCollider()

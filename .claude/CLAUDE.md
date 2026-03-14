@@ -37,8 +37,9 @@ Blender/           # Blender source files (.blend)
 
 ### Build
 ```bash
-# Open in Unity Hub, or from CLI:
-/Applications/Unity/Hub/Editor/6000.*/Unity.app/Contents/MacOS/Unity -projectPath .
+# Open in Unity Hub (Windows), or compile-check from WSL:
+bash scripts/unity-compile.sh /mnt/c/Users/awest/Aigames/three-dee
+# Note: if Unity Editor is open, script detects the lockfile and tells you to press Ctrl+R instead
 ```
 
 ### Test
@@ -62,7 +63,30 @@ dotnet test
 - Ground uses a single thick **BoxCollider**, not individual MeshColliders per grid cell
 - FBX models from Meshy may include colliders — remove them before adding physics components
 - Character rotation: Y-axis only via `Mathf.Atan2` — never use `LookRotation` for upright characters
+- **Camera-relative movement**: project `cam.transform.forward` and `cam.transform.right` onto XZ plane (zero Y, normalize), then combine with input axes — makes W always look like "up" on screen regardless of camera angle
+- **Border walls**: `GridManager.CreateBorderWalls()` spawns 4 invisible BoxCollider walls at map edges — call at end of `GenerateGrid()`
 - Models in `Assets/Resources/Models/` for `Resources.Load` at runtime
+
+## UI
+
+- Use `UnityEngine.UI` (not TextMeshPro) — TMP requires a manual "Import TMP Essential Resources" step that can't be automated
+- **Always add `using UnityEngine.UI;`** to any script using `Canvas`, `CanvasScaler`, `GraphicRaycaster`, `Image`, `Text`, `Button` — even in non-UI scripts like `GameBootstrap`
+- Screen-space HUD: `Canvas` with `RenderMode.ScreenSpaceOverlay`, `sortingOrder = 10`
+- Game Over overlay: separate `Canvas` with `sortingOrder = 100` so it renders on top
+- Call `EnsureEventSystem()` before creating any interactive UI — buttons need `EventSystem` + `StandaloneInputModule`
+- Health bar: `Image` with `type = Image.Type.Filled`, `fillMethod = FillMethod.Horizontal`, update `fillAmount` (0–1)
+- Fonts: `Font.CreateDynamicFontFromOSFont("Arial", size)` for built-in fonts
+- Retry button: `SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex)` restarts cleanly
+
+## Enemy AI
+
+- Zombies use **NavMeshAgent** for pathfinding — no manual movement code needed (agent drives position)
+- `ZombieController.Update()` calls `_agent.SetDestination(target.position)` each frame
+- Rotation driven manually from `_agent.velocity` (same Y-axis Atan2 pattern as player)
+- `agent.updateRotation = false` to prevent NavMeshAgent overriding rotation
+- Stagger `agent.avoidancePriority` (e.g. `50 + index`) across zombies to reduce clumping
+- **Build NavMesh before spawning agents** — call `NavMeshSetup.Build()` after all physics colliders (ground, buildings, walls) exist but before any NavMeshAgent is added
+- `NavMeshSetup.Build()` uses `NavMeshBuilder.CollectSources(NavMeshCollectGeometry.PhysicsColliders)` — only objects with colliders are included in the bake
 
 ## Animation
 

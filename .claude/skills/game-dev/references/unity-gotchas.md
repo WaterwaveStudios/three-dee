@@ -149,6 +149,24 @@ static void OnPostprocessAllAssets(string[] importedAssets, ...)
 Save to `Assets/Resources/Animations/` so it can be loaded at runtime via `Resources.Load<RuntimeAnimatorController>()`.
 Trigger: right-click FBX → Reimport.
 
+## UnityEngine.UI Namespace in Non-UI Scripts
+
+`CanvasScaler`, `GraphicRaycaster`, `Canvas`, `Image`, `Text`, `Button` all require `using UnityEngine.UI;`. This is easy to forget when using them in a script like `GameBootstrap` that isn't in a UI namespace:
+
+```csharp
+// In GameBootstrap.cs — MUST add this even though it's not a UI class
+using UnityEngine.UI;
+```
+
+Without it, `CanvasScaler` and `GraphicRaycaster` silently fail as `CS0246` type-not-found errors.
+
+## WSL Compile Script
+
+`scripts/unity-compile.sh` runs Unity batch mode to compile and report errors. Key behaviours:
+- Checks for `Temp/UnityLockfile` — if Unity Editor is open (lockfile held), exits cleanly and tells the user to press Ctrl+R
+- Greps the log for `error CS` to surface compile errors
+- Unity path: `/mnt/c/Program Files/Unity/Hub/Editor/6000.3.11f1/Editor/Unity.exe`
+
 ## Unity Null vs C# Null (`??` Operator)
 
 Unity overrides `==` so that destroyed/missing components compare equal to `null`. But C#'s `??` operator uses raw reference equality and **bypasses** Unity's null check — missing components slip through and crash on access:
@@ -164,6 +182,20 @@ if (animator == null)
 ```
 
 Same applies to `?.` in some contexts. Always use `if (component == null)` for Unity component checks.
+
+## NavMesh Runtime Baking Order
+
+Build order matters — NavMesh must be baked **after** all physics colliders exist but **before** any `NavMeshAgent` is enabled:
+
+```
+1. Spawn ground (BoxCollider)
+2. Spawn buildings (MeshCollider / BoxCollider)
+3. Spawn border walls (BoxCollider)
+4. Call NavMeshSetup.Build()   ← HERE
+5. Spawn agents (NavMeshAgent)
+```
+
+`NavMeshBuilder.CollectSources` with `NavMeshCollectGeometry.PhysicsColliders` automatically picks up all colliders within the bounds. If agents are added before the bake, they log `"Failed to create agent because it is not close enough to the NavMesh"`.
 
 ## macOS Trackpad Input
 

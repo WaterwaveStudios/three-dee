@@ -54,26 +54,18 @@ field.SetValue(target, value);
 
 ### 3. Compile and Test
 
-Always verify before committing. Use the bundled scripts:
+**MANDATORY: always run the compile check after every piece of work, before reporting done.**
 
 ```bash
-# Compile check
-scripts/unity-compile.sh /path/to/project
-
-# Run EditMode tests
-scripts/unity-test.sh /path/to/project EditMode
-
-# Run PlayMode tests
-scripts/unity-test.sh /path/to/project PlayMode
+# Compile check (run this every time — no exceptions)
+bash scripts/unity-compile.sh /mnt/c/Users/awest/Aigames/three-dee
 ```
 
-Or manually:
-```bash
-rm -f Temp/UnityLockfile
-/Applications/Unity/Hub/Editor/6000.3.11f1/Unity.app/Contents/MacOS/Unity \
-  -runTests -projectPath . -testPlatform EditMode \
-  -testResults /tmp/results.xml -batchmode -logFile /tmp/test.log
-```
+If there are compile errors, fix them before finishing. Do not tell the user the work is done until compile passes (or Unity is not accessible from CLI — see note below).
+
+**WSL note**: Unity is at `/mnt/c/Program Files/Unity/Hub/Editor/6000.3.11f1/Editor/Unity.exe`. The compile script handles the lockfile and parses errors from the log automatically.
+
+**If the Unity Editor is open**: the script detects the lockfile and exits cleanly with a message to press **Ctrl+R** in the Editor to recompile. Tell the user to check the Console panel for errors.
 
 ## Debugging Unity Issues
 
@@ -117,9 +109,14 @@ Read `references/unity-gotchas.md` for the full list. The most common issues:
 - Player units: `Rigidbody` + `CapsuleCollider` (NOT CharacterController — clips through)
 - Strip imported FBX colliders before adding your own physics components
 - Camera follow: `CameraFollower` component with offset, smooth lerp in `LateUpdate`
+- Camera-relative movement: project `cam.transform.forward/right` onto XZ (zero Y, normalize), combine with input — W always moves "up" on screen
+- Camera centering on unit: viewport ray cast to ground plane, shift camera position by delta
 - Y-axis rotation only for upright characters: `Mathf.Atan2(dir.x, dir.z)` → `Quaternion.Euler(0, angle, 0)`
 - Meshy AI models: load FBX + matching texture via `Resources.Load`, create URP Lit material at runtime
 - `MeshyTextureImporter` (AssetPostprocessor) auto-configures import quality for model textures
+- **NavMesh baking order**: ground → buildings → border walls → `NavMeshSetup.Build()` → spawn NavMeshAgents
+- Enemy AI: `NavMeshAgent.SetDestination(target.position)` each frame; set `agent.updateRotation = false` and rotate manually from `agent.velocity`
+- Stagger `agent.avoidancePriority` (e.g. `50 + index`) across multiple agents to reduce clumping
 
 ### UI
 - `UIHelper` static class for runtime UI creation (Canvas, Text, Button)

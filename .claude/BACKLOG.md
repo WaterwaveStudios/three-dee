@@ -10,12 +10,16 @@
 - [x] **Mobile Touch Controls** — Pinch-to-zoom, two-finger pan, rotate
 - [x] **Migrate to New Input System** — Replace deprecated Input Manager with Unity Input System package
 - [x] **Player Unit Control** — WASD moves unit with kinematic movement, camera follows, Meshy model rotation fixed
-- [ ] **Fix WASD movement** — Explorer unit not responding to input after model swap; debug logging added (`[UnitController]` in Console), root cause not yet found
-- [ ] **Animation System** — AnimatorController auto-created from FBX clips via AssetPostprocessor; idle/walk wired to `IsMoving` bool; needs movement fix before validation
+- [x] **Fix WASD movement** — Switched to `Rigidbody.MovePosition` in `FixedUpdate`; camera-relative movement (W=screen-up, D=screen-right); `applyRootMotion=false` to stop animation fighting movement
+- [x] **Animation System** — AnimatorController auto-created via AssetPostprocessor; idle/walk wired to `IsMoving` bool; walk clip loops set in `OnPostprocessAnimation`; **requires Reimport of FBX in Unity to apply**
+- [x] **Zombie AI** — 11 zombies chase the Explorer using NavMeshAgent pathfinding; `ZombieController` drives rotation and `IsMoving` animation param; staggered avoidance priority prevents clumping
+- [x] **NavMesh Runtime Baking** — `NavMeshSetup.Build()` collects PhysicsColliders and bakes NavMesh at runtime; called after buildings spawn, before units spawn
+- [x] **Border Walls** — `GridManager.CreateBorderWalls()` adds 4 invisible BoxCollider walls at map edges to keep units on the playable area
 
 ## Priority 2 — Core Systems
 
 - [x] **Migrate .claude config** — Copy CLAUDE.md and game-dev skill from .g to .claude/ so collaborators get project config from the repo. Sync script at scripts/sync-claude.sh
+- [x] **Health System & Game Over** — Explorer has 10 HP; each zombie contact deals 1 damage; at 0 HP show Game Over screen with Retry button that restarts the scene
 - [ ] **Building Placement** — Tap-to-place buildings on grid cells
 
 ## Priority 3 — Polish

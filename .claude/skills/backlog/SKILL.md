@@ -18,31 +18,30 @@ Review and select feature requests from the project backlog.
 
 ## Behavior (No Arguments)
 
-When `/backlog` is called with no arguments, **ONLY read progress.md** to minimize context usage.
+When `/backlog` is called with no arguments, read the project's backlog file.
 
-1. **Read progress.md** at `.g/.claude/backlog/progress.md`
-   - This is the ONLY file to read for the default invocation
-   - DO NOT scan or read individual backlog item files
-   - progress.md contains: Active, Pending, Completed lists, and Next Up recommendation
+**This project uses `.claude/BACKLOG.md`** — a flat markdown checklist grouped by priority sections with `[x]` (done) and `[ ]` (pending) items.
 
-2. **Present the summary from progress.md**:
-   - Show Active items (currently in-progress)
-   - Show Pending items (ready to work on)
-   - Show Next Up recommendation
-   - Offer to load a specific item if user wants to work on one
+1. **Read `.claude/BACKLOG.md`** (the project backlog file)
+   - Parse ALL items: completed (`[x]`) and pending (`[ ]`)
+   - Group by priority section (Priority 1, Priority 2, etc.)
 
-3. **If user selects an item**:
-   - ONLY THEN read that specific backlog file
-   - Update status to `in-progress` if it was `pending`
-   - Update progress.md to reflect the change
-   - Present the full context to begin work
+2. **Present ALL items** via `AskUserQuestion`:
+   - Show every item — completed and pending — so the user has full context
+   - Completed items should be visually distinguishable (e.g. "✅ Done" in description)
+   - Pending items are selectable to start work on
+   - Always include a "Skip" option
 
-**IMPORTANT**: The default `/backlog` invocation should NEVER read individual backlog files. This keeps context minimal. Only read specific files when:
-- User explicitly selects an item to work on
-- User runs `/backlog verify` (needs to check acceptance criteria)
-- User runs `/backlog update` (needs to check for duplicates)
+3. **If user selects a pending item**:
+   - Present the full context and begin work on that item
 
-## Keeping progress.md Updated
+## This Project: BACKLOG.md
+
+**This project does NOT use progress.md or individual backlog files.** All backlog tracking is in `.claude/BACKLOG.md` — a simple flat checklist. Update `[x]` when items are done. The sections below about progress.md are from the generic skill template and do NOT apply here.
+
+---
+
+## Keeping progress.md Updated (generic — does not apply to this project)
 
 **progress.md is the source of truth** for quick backlog status. It MUST be kept current.
 
@@ -113,23 +112,25 @@ For `/backlog verify`, `/backlog update`, and `/backlog add`, the full file scan
 
 ## Output Format (No Arguments)
 
-Use `AskUserQuestion` to present a selection UI. Build options from the Active and Pending items in progress.md.
+Use `AskUserQuestion` to present a selection UI. Show **ALL items** from the backlog — completed and pending.
 
 **Option construction:**
-- Each Active/Pending item becomes an option
-- Label: item filename (short form, e.g. "DTR-1664-chris-submission-gasds")
-- Description: the brief description and priority from progress.md. If the "Next Up" section recommends this item, append "(Recommended)" to the label
+- **Every item** from BACKLOG.md becomes an option (completed and pending alike)
+- Label: the item name/title
+- Description: include the priority section and status. For completed items prefix with "✅ Done — ". For pending items prefix with "⬜ Pending — "
 - Add a final "Skip" option with description "Don't select an item right now"
+- AskUserQuestion supports max 4 options, so if there are more items, group or summarize as needed
 
-**Example AskUserQuestion call:**
+**Example AskUserQuestion call (for this project):**
 ```
 AskUserQuestion(
   questions: [{
     question: "Which backlog item do you want to work on?",
     header: "Backlog",
     options: [
-      { label: "DTR-1664 (Recommended)", description: "F10 ChRIS Submission GASDS — rework data source (high, active)" },
-      { label: "f23-schematron", description: "Full F23 implementation (medium, pending)" },
+      { label: "Building Placement (Recommended)", description: "⬜ Pending — Priority 2: Tap-to-place buildings on grid cells" },
+      { label: "Mobile Build", description: "⬜ Pending — Priority 3: Test on actual iOS/Android device" },
+      { label: "Zombie AI", description: "✅ Done — Priority 1: NavMesh pathfinding enemies" },
       { label: "Skip", description: "Don't select an item right now" }
     ],
     multiSelect: false
@@ -137,32 +138,29 @@ AskUserQuestion(
 )
 ```
 
+**Note**: Since AskUserQuestion only supports 2-4 options, if there are many backlog items, show only the pending ones plus 1-2 recently completed ones, always filling the last slot with "Skip".
+
 ## Implementation Steps (No Arguments)
 
 ```
-1. Read progress.md at .g/.claude/backlog/progress.md
-   - This is the ONLY file read for default invocation
-   - DO NOT use Glob or read individual backlog files
+1. Read .claude/BACKLOG.md
+   - Parse ALL items (both [x] completed and [ ] pending)
+   - Note which priority section each item belongs to
 
-2. Parse the progress.md sections:
-   - ## Active - items currently being worked on
-   - ## Pending - items ready to start
-   - ## Completed - recently finished items
-   - ## Next Up - recommended next item with reasoning
+2. Build the selection UI:
+   - Include ALL items — pending and completed
+   - Pending items: label with "(Recommended)" on the top pending item
+   - Completed items: prefix description with "✅ Done — "
+   - Since AskUserQuestion caps at 4 options, show the top pending items + "Skip"
+     (if items exceed 3, prioritize pending over completed)
+   - Always include "Skip" as the last option
 
 3. Present items via AskUserQuestion selection UI
-   - Build options from Active + Pending items
-   - Mark the "Next Up" recommended item with "(Recommended)" in its label and list it first
-   - Always include a "Skip" option last
    - DO NOT print a text summary — let the selection UI be the presentation
 
-4. If user selects an item (not "Skip"):
-   - ONLY THEN read that specific backlog file (.g/.claude/backlog/{item-name}.md)
-   - Update status to in-progress
-   - Update progress.md (move from Pending to Active, renumber remaining items)
-   - Present full context to begin work
-
-5. Always update progress.md before completing the skill
+4. If user selects a pending item (not "Skip"):
+   - Begin work on that item
+   - Update BACKLOG.md to mark item as [x] when complete
 ```
 
 ## Implementation Steps (Subcommands)

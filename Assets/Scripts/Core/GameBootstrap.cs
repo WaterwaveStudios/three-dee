@@ -1,7 +1,9 @@
 using UnityEngine;
+using UnityEngine.UI;
 using ThreeDee.Camera;
 using ThreeDee.Grid;
 using ThreeDee.Units;
+using ThreeDee.UI;
 
 namespace ThreeDee.Core
 {
@@ -16,8 +18,14 @@ namespace ThreeDee.Core
             var grid = SetupGrid();
             var isoCamera = SetupCamera();
             PlaceholderBuildings.SpawnDefaultBuildings(grid);
-            var player = SpawnUnits(grid);
+
+            // Build NavMesh after ground + buildings are placed, before spawning agents
+            float mapSize = grid.GridWidth * grid.CellSize;
+            NavMeshSetup.Build(mapSize, mapSize);
+
+            var (player, playerHealth) = SpawnUnits(grid);
             SetupCameraFollow(isoCamera, player);
+            SetupHUD(playerHealth);
 
             Debug.Log("[ThreeDee] Bootstrap complete.\n" +
                 "[Controls]\n" +
@@ -30,7 +38,7 @@ namespace ThreeDee.Core
                 "  Two-finger drag  — Pan camera");
         }
 
-        private static Transform SpawnUnits(GridManager grid)
+        private static (Transform player, PlayerHealth health) SpawnUnits(GridManager grid)
         {
             // Merged animations model: bakeAxisConversion handles axis flip, so no -90 X needed.
             // Texture has a different filename so pass it explicitly.
@@ -41,21 +49,102 @@ namespace ThreeDee.Core
                 modelRotation: Quaternion.Euler(0f, 180f, 0f),
                 texturePath: "Models/Units/Meshy_AI_texture_0 1");
 
-            SpawnModel("Models/Units/Meshy_AI_full_body_3D_cartoon__0314142802_texture",
-                "Soldier", grid.GridToWorldPosition(6, 5));
+            PlayerHealth playerHealth = null;
 
             // Explorer is the player-controlled unit
             if (explorer != null)
             {
-                AttachAnimator(explorer);
+                AttachAnimator(explorer, "Animations/MeshyMergedAnimations");
+                AttachPhysics(explorer);
                 var unit = explorer.AddComponent<UnitController>();
                 unit.Init(grid.GridToWorldPosition(3, 5));
+                playerHealth = explorer.AddComponent<PlayerHealth>();
             }
 
-            return explorer != null ? explorer.transform : null;
+            // Spawn 11 zombies at spread positions across the map
+            var zombieSpawns = new (int x, int z)[]
+            {
+                (6, 5), (0, 0), (9, 0), (0, 9), (9, 9),
+                (8, 2), (0, 4), (9, 6), (2, 9), (7, 1), (0, 8)
+            };
+
+            for (int i = 0; i < zombieSpawns.Length; i++)
+            {
+                var (zx, zz) = zombieSpawns[i];
+                var zombie = SpawnModel(
+                    "Models/Units/zombie",
+                    $"Zombie_{i}",
+                    grid.GridToWorldPosition(zx, zz),
+                    modelRotation: Quaternion.Euler(0f, 180f, 0f),
+                    texturePath: "Models/Units/zombie texutre");
+
+                if (zombie != null)
+                {
+                    AttachAnimator(zombie, "Animations/ZombieAnimations");
+                    AttachZombieAgent(zombie, i);
+                    var zombieCtrl = zombie.AddComponent<ZombieController>();
+                    if (explorer != null)
+                        zombieCtrl.Init(explorer.transform, playerHealth);
+                }
+            }
+
+            return (explorer != null ? explorer.transform : null, playerHealth);
         }
 
-        private static void AttachAnimator(GameObject wrapper)
+        private static void SetupHUD(PlayerHealth playerHealth)
+        {
+            EnsureEventSystem();
+
+            // HUD canvas for health bar
+            var hudGo = new GameObject("HUD");
+            var hudCanvas = hudGo.AddComponent<Canvas>();
+            hudCanvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            hudCanvas.sortingOrder = 10;
+            hudGo.AddComponent<CanvasScaler>();
+            hudGo.AddComponent<GraphicRaycaster>();
+
+            var healthBar = HealthBarUI.Create(hudCanvas);
+
+            var gameOverUI = GameOverUI.Create();
+
+            if (playerHealth != null)
+            {
+                playerHealth.OnHealthChanged += (cur, max) => healthBar.SetHealth(cur, max);
+                playerHealth.OnDeath += () => gameOverUI.Show();
+            }
+        }
+
+        private static void EnsureEventSystem()
+        {
+            if (Object.FindAnyObjectByType<UnityEngine.EventSystems.EventSystem>() != null) return;
+            var es = new GameObject("EventSystem");
+            es.AddComponent<UnityEngine.EventSystems.EventSystem>();
+            es.AddComponent<UnityEngine.EventSystems.StandaloneInputModule>();
+        }
+
+        private static void AttachZombieAgent(GameObject wrapper, int index)
+        {
+            var agent = wrapper.AddComponent<UnityEngine.AI.NavMeshAgent>();
+            agent.radius = 0.4f;
+            agent.height = 1.8f;
+            agent.avoidancePriority = 50 + index; // stagger priority to reduce clumping
+        }
+
+        private static void AttachPhysics(GameObject wrapper)
+        {
+            var col = wrapper.AddComponent<CapsuleCollider>();
+            col.height = 1.8f;
+            col.radius = 0.4f;
+            col.center = new Vector3(0f, 0.9f, 0f);
+
+            var rb = wrapper.AddComponent<Rigidbody>();
+            rb.useGravity = false;
+            rb.interpolation = RigidbodyInterpolation.Interpolate;
+            rb.collisionDetectionMode = CollisionDetectionMode.Continuous;
+            rb.constraints = RigidbodyConstraints.FreezeRotation | RigidbodyConstraints.FreezePositionY;
+        }
+
+        private static void AttachAnimator(GameObject wrapper, string controllerPath)
         {
             var model = wrapper.transform.Find("Model");
             if (model == null) return;
@@ -64,11 +153,12 @@ namespace ThreeDee.Core
             if (animator == null)
                 animator = model.gameObject.AddComponent<Animator>();
             animator.applyRootMotion = false;
-            var controller = Resources.Load<RuntimeAnimatorController>("Animations/MeshyMergedAnimations");
+
+            var controller = Resources.Load<RuntimeAnimatorController>(controllerPath);
             if (controller != null)
                 animator.runtimeAnimatorController = controller;
             else
-                Debug.LogWarning("[ThreeDee] AnimatorController not found — reimport the Merged Animations FBX first.");
+                Debug.LogWarning($"[ThreeDee] AnimatorController not found at Resources/{controllerPath} — reimport the FBX first.");
         }
 
         private static void SetupCameraFollow(IsometricCamera isoCamera, Transform player)
