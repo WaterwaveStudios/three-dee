@@ -1,0 +1,85 @@
+# three-dee
+
+3D strategy/base-building game prototype built in Unity 6 (URP), inspired by Last War. A testbed for exploring 3D mechanics, rendering, and asset pipelines — with 3D models generated via Meshy AI.
+
+## Project Structure
+
+```
+Assets/
+  Scenes/          # Unity scenes
+  Scripts/         # C# game scripts
+  Prefabs/         # Reusable game objects
+  Materials/       # URP materials and shaders
+  Models/          # 3D models (from Meshy AI or Blender)
+    Units/         # Character/unit models
+    Buildings/     # Building models
+  Textures/        # Texture files
+  UI/              # UI elements
+Packages/          # Unity package manifest
+ProjectSettings/   # Unity project settings
+Blender/           # Blender source files (.blend)
+```
+
+## Tech Stack
+
+- **Engine**: Unity 6 (6000.x)
+- **Render Pipeline**: URP (Universal Render Pipeline)
+- **Language**: C#
+- **3D Modelling**: Meshy AI (generate via web UI, download FBX to Assets/Models/)
+- **Target**: Mobile (Last War-style strategy)
+
+## Workflow
+
+- Use `/game-dev` for all feature implementation, debugging, and game system architecture
+- Follow TDD where possible: write tests first, then implement
+
+## Development
+
+### Build
+```bash
+# Open in Unity Hub, or from CLI:
+/Applications/Unity/Hub/Editor/6000.*/Unity.app/Contents/MacOS/Unity -projectPath .
+```
+
+### Test
+```bash
+# Run EditMode tests
+dotnet test
+# Or via Unity Test Runner (Window > General > Test Runner)
+```
+
+## Code Style
+
+- C# with Unity conventions
+- PascalCase for public members, _camelCase for private fields
+- MonoBehaviour components for game objects
+- ScriptableObjects for data-driven configuration
+- URP Shader Graph for custom materials
+
+## Physics
+
+- Player units use **Rigidbody + CapsuleCollider** (not CharacterController — it clips through colliders)
+- Ground uses a single thick **BoxCollider**, not individual MeshColliders per grid cell
+- FBX models from Meshy may include colliders — remove them before adding physics components
+- Character rotation: Y-axis only via `Mathf.Atan2` — never use `LookRotation` for upright characters
+- Models in `Assets/Resources/Models/` for `Resources.Load` at runtime
+
+## Asset Pipeline
+
+- **Primary**: Meshy AI for 3D model generation (text/image-to-3D)
+  - Free tier: generate on meshy.ai web UI, download FBX
+  - Pro tier ($10/mo annual): REST API + Unity plugin access
+  - Unity plugin requires API key (Pro subscription)
+- **Fallback**: Blender for manual modelling — source .blend files in `Blender/`
+- Export/download as `.fbx` format into `Assets/Models/`
+- Unit models go in `Assets/Models/Units/`
+- Building models go in `Assets/Models/Buildings/`
+- Materials use URP Lit shader or custom Shader Graph materials
+- Textures: PNG or TGA, power-of-2 dimensions preferred for mobile
+- **Meshy prompt style**: include "low-poly", "mobile game asset", "isometric game asset", "clean geometry", "stylized" for consistent art direction
+
+## Key Concepts
+
+- **Strategy/base-building**: Core gameplay loop around building and defending a base
+- **3D rendering**: Experimenting with URP features — lighting, shadows, post-processing
+- **AI-generated assets**: Using Meshy AI for 3D model generation; Tripo AI as backup for higher volume needs

@@ -15,6 +15,13 @@
 sysinfo.txt
 crashlytics-buildid.txt
 
+# Claude Code — personal/local files
+.claude/settings.local.json
+.g/
+
+# Crash dumps
+mono_crash.*.json
+
 # OS
 .DS_Store
 Thumbs.db
