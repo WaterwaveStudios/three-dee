@@ -16,7 +16,17 @@ namespace ThreeDee.Core
             SetupCamera();
             PlaceholderBuildings.SpawnDefaultBuildings(grid);
 
-            Debug.Log("[ThreeDee] Bootstrap complete.");
+            Debug.Log("[ThreeDee] Bootstrap complete.\n" +
+                "[Controls]\n" +
+                "  WASD / Arrows  — Pan\n" +
+                "  Scroll         — Zoom in/out\n" +
+                "  Q / E          — Rotate\n" +
+                "  Right-click drag — Pan\n" +
+                "  Alt + left-click drag — Pan\n" +
+                "[Mobile]\n" +
+                "  Pinch           — Zoom\n" +
+                "  Two-finger drag — Pan\n" +
+                "  Two-finger twist — Rotate");
         }
 
         private static void SetupLighting()

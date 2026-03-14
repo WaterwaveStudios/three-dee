@@ -4,12 +4,21 @@ namespace ThreeDee.Camera
 {
     public class IsometricCamera : MonoBehaviour
     {
+        [Header("Pan")]
         [SerializeField] private float _panSpeed = 20f;
-        [SerializeField] private float _zoomSpeed = 5f;
+
+        [Header("Zoom")]
+        [SerializeField] private float _zoomSpeed = 2f;
         [SerializeField] private float _minZoom = 5f;
         [SerializeField] private float _maxZoom = 30f;
+        [SerializeField] private float _trackpadZoomSpeed = 10f;
+
+        [Header("Rotation")]
         [SerializeField] private float _rotationAngleY = 45f;
         [SerializeField] private float _rotationAngleX = 30f;
+        [SerializeField] private float _keyboardRotateSpeed = 90f;
+
+        [Header("Touch")]
         [SerializeField] private float _touchZoomSensitivity = 0.05f;
         [SerializeField] private float _touchPanSensitivity = 0.02f;
         [SerializeField] private float _touchRotateSensitivity = 0.5f;
@@ -43,10 +52,13 @@ namespace ThreeDee.Camera
             else
             {
                 _isTouching = false;
-                HandleMousePan();
-                HandleMouseZoom();
+                HandleDesktopPan();
+                HandleDesktopZoom();
+                HandleDesktopRotate();
             }
         }
+
+        // --- Touch (mobile) ---
 
         private void HandleTouchInput()
         {
@@ -93,43 +105,32 @@ namespace ThreeDee.Camera
         private void HandleTouchPan(Vector2 curTouch0, Vector2 curTouch1)
         {
             Vector2 panDelta = _touchProcessor.CalculateTwoFingerPanDelta(_prevTouch0, _prevTouch1, curTouch0, curTouch1);
-
-            Vector3 forward = transform.forward;
-            forward.y = 0f;
-            forward.Normalize();
-            Vector3 right = transform.right;
-            right.y = 0f;
-            right.Normalize();
-
-            Vector3 move = (-right * panDelta.x - forward * panDelta.y) * _touchPanSensitivity;
-            transform.position += move;
+            ApplyPan(-panDelta.x * _touchPanSensitivity, -panDelta.y * _touchPanSensitivity);
         }
 
         private void HandleTouchRotate(Vector2 curTouch0, Vector2 curTouch1)
         {
             float rotationDelta = _touchProcessor.CalculateRotationDelta(_prevTouch0, _prevTouch1, curTouch0, curTouch1);
-            transform.RotateAround(GetPivotPoint(), Vector3.up, -rotationDelta * _touchRotateSensitivity);
+            ApplyRotation(-rotationDelta * _touchRotateSensitivity);
         }
 
-        private Vector3 GetPivotPoint()
-        {
-            // Raycast from camera center to find ground pivot
-            Ray ray = Camera.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f));
-            var groundPlane = new Plane(Vector3.up, Vector3.zero);
-            if (groundPlane.Raycast(ray, out float distance))
-                return ray.GetPoint(distance);
-            return transform.position + transform.forward * 20f;
-        }
+        // --- Desktop (mouse/keyboard/trackpad) ---
 
-        private void HandleMousePan()
+        private void HandleDesktopPan()
         {
-            if (Input.GetMouseButtonDown(1) || Input.GetMouseButtonDown(2))
+            // Right-click drag, middle-click drag, or Alt+left-click drag
+            bool startPan = Input.GetMouseButtonDown(1) || Input.GetMouseButtonDown(2)
+                || (Input.GetMouseButtonDown(0) && Input.GetKey(KeyCode.LeftAlt));
+            bool endPan = Input.GetMouseButtonUp(1) || Input.GetMouseButtonUp(2)
+                || Input.GetMouseButtonUp(0);
+
+            if (startPan)
             {
                 _isPanning = true;
                 _lastMousePosition = Input.mousePosition;
             }
 
-            if (Input.GetMouseButtonUp(1) || Input.GetMouseButtonUp(2))
+            if (endPan)
             {
                 _isPanning = false;
             }
@@ -137,16 +138,8 @@ namespace ThreeDee.Camera
             if (_isPanning)
             {
                 Vector3 delta = Input.mousePosition - _lastMousePosition;
-                Vector3 move = new Vector3(-delta.x, 0f, -delta.y) * _panSpeed * Time.deltaTime * 0.1f;
-
-                Vector3 forward = transform.forward;
-                forward.y = 0f;
-                forward.Normalize();
-                Vector3 right = transform.right;
-                right.y = 0f;
-                right.Normalize();
-
-                transform.position += right * move.x + forward * move.z;
+                float scale = _panSpeed * Time.deltaTime * 0.1f;
+                ApplyPan(-delta.x * scale, -delta.y * scale);
                 _lastMousePosition = Input.mousePosition;
             }
 
@@ -155,28 +148,65 @@ namespace ThreeDee.Camera
             float v = Input.GetAxis("Vertical");
             if (Mathf.Abs(h) > 0.01f || Mathf.Abs(v) > 0.01f)
             {
-                Vector3 forward = transform.forward;
-                forward.y = 0f;
-                forward.Normalize();
-                Vector3 right = transform.right;
-                right.y = 0f;
-                right.Normalize();
-
-                transform.position += (right * h + forward * v) * _panSpeed * Time.deltaTime;
+                float scale = _panSpeed * Time.deltaTime;
+                ApplyPan(h * scale, v * scale);
             }
         }
 
-        private void HandleMouseZoom()
+        private void HandleDesktopZoom()
         {
-            float scroll = Input.GetAxis("Mouse ScrollWheel");
-            if (Mathf.Abs(scroll) > 0.01f && Camera != null)
+            if (Camera == null) return;
+
+            // Use mouseScrollDelta for reliable trackpad support on macOS
+            float scroll = Input.mouseScrollDelta.y;
+            if (Mathf.Abs(scroll) > 0.01f)
             {
+                // mouseScrollDelta gives larger values on trackpad, smaller on mouse wheel
+                // Detect trackpad-style input: trackpad gives fractional, high-frequency values
+                float speed = Mathf.Abs(scroll) < 1f ? _trackpadZoomSpeed : _zoomSpeed;
                 Camera.orthographicSize = TouchInputProcessor.ClampZoom(
-                    Camera.orthographicSize - scroll * _zoomSpeed,
+                    Camera.orthographicSize - scroll * speed * Time.deltaTime,
                     _minZoom,
                     _maxZoom
                 );
             }
+        }
+
+        private void HandleDesktopRotate()
+        {
+            // Q/E keys for rotation
+            if (Input.GetKey(KeyCode.Q))
+                ApplyRotation(-_keyboardRotateSpeed * Time.deltaTime);
+            if (Input.GetKey(KeyCode.E))
+                ApplyRotation(_keyboardRotateSpeed * Time.deltaTime);
+        }
+
+        // --- Shared movement helpers ---
+
+        private void ApplyPan(float rightAmount, float forwardAmount)
+        {
+            Vector3 forward = transform.forward;
+            forward.y = 0f;
+            forward.Normalize();
+            Vector3 right = transform.right;
+            right.y = 0f;
+            right.Normalize();
+
+            transform.position += right * rightAmount + forward * forwardAmount;
+        }
+
+        private void ApplyRotation(float degrees)
+        {
+            transform.RotateAround(GetPivotPoint(), Vector3.up, degrees);
+        }
+
+        private Vector3 GetPivotPoint()
+        {
+            Ray ray = Camera.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f));
+            var groundPlane = new Plane(Vector3.up, Vector3.zero);
+            if (groundPlane.Raycast(ray, out float distance))
+                return ray.GetPoint(distance);
+            return transform.position + transform.forward * 20f;
         }
 
         public void SetIsometricView()
