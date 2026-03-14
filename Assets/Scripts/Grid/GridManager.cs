@@ -26,6 +26,17 @@ namespace ThreeDee.Grid
                     _cells[x, z] = CreateCell(x, z);
                 }
             }
+
+            CreateGroundCollider();
+        }
+
+        private void CreateGroundCollider()
+        {
+            var ground = new GameObject("GroundCollider");
+            ground.transform.SetParent(transform);
+            ground.transform.localPosition = new Vector3(0f, -0.5f, 0f);
+            var box = ground.AddComponent<BoxCollider>();
+            box.size = new Vector3(_gridWidth * _cellSize + 4f, 1f, _gridHeight * _cellSize + 4f);
         }
 
         private GameObject CreateCell(int x, int z)
@@ -33,6 +44,16 @@ namespace ThreeDee.Grid
             var cell = GameObject.CreatePrimitive(PrimitiveType.Plane);
             cell.name = $"Cell_{x}_{z}";
             cell.transform.SetParent(transform);
+
+            // Remove individual MeshCollider — ground uses a single BoxCollider
+            var meshCollider = cell.GetComponent<MeshCollider>();
+            if (meshCollider != null)
+            {
+                if (Application.isPlaying)
+                    Object.Destroy(meshCollider);
+                else
+                    Object.DestroyImmediate(meshCollider);
+            }
 
             // Plane default is 10x10 units, scale to cell size
             float scale = _cellSize / 10f;

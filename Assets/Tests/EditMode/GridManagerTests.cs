@@ -107,7 +107,8 @@ namespace ThreeDee.Tests.EditMode
             var grid = GridManager.Create(5, 5, 2f);
             grid.GenerateGrid();
 
-            Assert.AreEqual(25, grid.transform.childCount);
+            // 25 cells + 1 ground collider
+            Assert.AreEqual(26, grid.transform.childCount);
 
             Object.DestroyImmediate(grid.gameObject);
         }

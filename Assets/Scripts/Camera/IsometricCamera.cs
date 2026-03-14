@@ -1,4 +1,7 @@
 using UnityEngine;
+using UnityEngine.InputSystem.EnhancedTouch;
+using ThreeDee.Core;
+using Touch = UnityEngine.InputSystem.EnhancedTouch.Touch;
 
 namespace ThreeDee.Camera
 {
@@ -16,7 +19,6 @@ namespace ThreeDee.Camera
         [Header("Rotation")]
         [SerializeField] private float _rotationAngleY = 45f;
         [SerializeField] private float _rotationAngleX = 30f;
-        [SerializeField] private float _keyboardRotateSpeed = 90f;
 
         [Header("Touch")]
         [SerializeField] private float _touchZoomSensitivity = 0.05f;
@@ -24,8 +26,7 @@ namespace ThreeDee.Camera
         [SerializeField] private float _touchRotateSensitivity = 0.5f;
 
         private UnityEngine.Camera _camera;
-        private Vector3 _lastMousePosition;
-        private bool _isPanning;
+        private bool _wasPanning;
 
         private readonly TouchInputProcessor _touchProcessor = new TouchInputProcessor();
         private Vector2 _prevTouch0;
@@ -45,7 +46,7 @@ namespace ThreeDee.Camera
 
         private void Update()
         {
-            if (Input.touchCount >= 2)
+            if (Touch.activeTouches.Count >= 2)
             {
                 HandleTouchInput();
             }
@@ -54,7 +55,6 @@ namespace ThreeDee.Camera
                 _isTouching = false;
                 HandleDesktopPan();
                 HandleDesktopZoom();
-                HandleDesktopRotate();
             }
         }
 
@@ -62,55 +62,58 @@ namespace ThreeDee.Camera
 
         private void HandleTouchInput()
         {
-            var touch0 = Input.GetTouch(0);
-            var touch1 = Input.GetTouch(1);
+            var touch0 = Touch.activeTouches[0];
+            var touch1 = Touch.activeTouches[1];
 
             if (!_isTouching)
             {
                 _isTouching = true;
-                _prevTouch0 = touch0.position;
-                _prevTouch1 = touch1.position;
+                _prevTouch0 = touch0.screenPosition;
+                _prevTouch1 = touch1.screenPosition;
                 return;
             }
 
-            var gesture = _touchProcessor.DetectGesture(_prevTouch0, _prevTouch1, touch0.position, touch1.position);
+            var gesture = _touchProcessor.DetectGesture(
+                _prevTouch0, _prevTouch1,
+                touch0.screenPosition, touch1.screenPosition);
 
             switch (gesture)
             {
                 case TouchGesture.Zoom:
-                    HandleTouchZoom(touch0.position, touch1.position);
+                    HandleTouchZoom(touch0.screenPosition, touch1.screenPosition);
                     break;
                 case TouchGesture.Pan:
-                    HandleTouchPan(touch0.position, touch1.position);
+                    HandleTouchPan(touch0.screenPosition, touch1.screenPosition);
                     break;
                 case TouchGesture.Rotate:
-                    HandleTouchRotate(touch0.position, touch1.position);
+                    HandleTouchRotate(touch0.screenPosition, touch1.screenPosition);
                     break;
             }
 
-            _prevTouch0 = touch0.position;
-            _prevTouch1 = touch1.position;
+            _prevTouch0 = touch0.screenPosition;
+            _prevTouch1 = touch1.screenPosition;
         }
 
         private void HandleTouchZoom(Vector2 curTouch0, Vector2 curTouch1)
         {
-            float pinchDelta = _touchProcessor.CalculatePinchZoomDelta(_prevTouch0, _prevTouch1, curTouch0, curTouch1);
+            float pinchDelta = _touchProcessor.CalculatePinchZoomDelta(
+                _prevTouch0, _prevTouch1, curTouch0, curTouch1);
             Camera.orthographicSize = TouchInputProcessor.ClampZoom(
                 Camera.orthographicSize - pinchDelta * _touchZoomSensitivity,
-                _minZoom,
-                _maxZoom
-            );
+                _minZoom, _maxZoom);
         }
 
         private void HandleTouchPan(Vector2 curTouch0, Vector2 curTouch1)
         {
-            Vector2 panDelta = _touchProcessor.CalculateTwoFingerPanDelta(_prevTouch0, _prevTouch1, curTouch0, curTouch1);
+            Vector2 panDelta = _touchProcessor.CalculateTwoFingerPanDelta(
+                _prevTouch0, _prevTouch1, curTouch0, curTouch1);
             ApplyPan(-panDelta.x * _touchPanSensitivity, -panDelta.y * _touchPanSensitivity);
         }
 
         private void HandleTouchRotate(Vector2 curTouch0, Vector2 curTouch1)
         {
-            float rotationDelta = _touchProcessor.CalculateRotationDelta(_prevTouch0, _prevTouch1, curTouch0, curTouch1);
+            float rotationDelta = _touchProcessor.CalculateRotationDelta(
+                _prevTouch0, _prevTouch1, curTouch0, curTouch1);
             ApplyRotation(-rotationDelta * _touchRotateSensitivity);
         }
 
@@ -118,67 +121,33 @@ namespace ThreeDee.Camera
 
         private void HandleDesktopPan()
         {
-            // Right-click drag, middle-click drag, or Alt+left-click drag
-            bool startPan = Input.GetMouseButtonDown(1) || Input.GetMouseButtonDown(2)
-                || (Input.GetMouseButtonDown(0) && Input.GetKey(KeyCode.LeftAlt));
-            bool endPan = Input.GetMouseButtonUp(1) || Input.GetMouseButtonUp(2)
-                || Input.GetMouseButtonUp(0);
+            var input = GameInput.Instance;
+            if (input == null) return;
 
-            if (startPan)
+            if (input.IsPanning)
             {
-                _isPanning = true;
-                _lastMousePosition = Input.mousePosition;
-            }
-
-            if (endPan)
-            {
-                _isPanning = false;
-            }
-
-            if (_isPanning)
-            {
-                Vector3 delta = Input.mousePosition - _lastMousePosition;
+                Vector2 delta = input.PointerDelta;
                 float scale = _panSpeed * Time.deltaTime * 0.1f;
                 ApplyPan(-delta.x * scale, -delta.y * scale);
-                _lastMousePosition = Input.mousePosition;
-            }
-
-            // WASD/Arrow key panning
-            float h = Input.GetAxis("Horizontal");
-            float v = Input.GetAxis("Vertical");
-            if (Mathf.Abs(h) > 0.01f || Mathf.Abs(v) > 0.01f)
-            {
-                float scale = _panSpeed * Time.deltaTime;
-                ApplyPan(h * scale, v * scale);
             }
         }
 
         private void HandleDesktopZoom()
         {
             if (Camera == null) return;
+            var input = GameInput.Instance;
+            if (input == null) return;
 
-            // Use mouseScrollDelta for reliable trackpad support on macOS
-            float scroll = Input.mouseScrollDelta.y;
+            float scroll = input.ScrollInput;
             if (Mathf.Abs(scroll) > 0.01f)
             {
-                // mouseScrollDelta gives larger values on trackpad, smaller on mouse wheel
-                // Detect trackpad-style input: trackpad gives fractional, high-frequency values
-                float speed = Mathf.Abs(scroll) < 1f ? _trackpadZoomSpeed : _zoomSpeed;
+                // Normalise — Input System scroll values are in pixels (120 per notch)
+                float normalised = scroll / 120f;
+                float speed = Mathf.Abs(normalised) < 1f ? _trackpadZoomSpeed : _zoomSpeed;
                 Camera.orthographicSize = TouchInputProcessor.ClampZoom(
-                    Camera.orthographicSize - scroll * speed * Time.deltaTime,
-                    _minZoom,
-                    _maxZoom
-                );
+                    Camera.orthographicSize - normalised * speed * Time.deltaTime,
+                    _minZoom, _maxZoom);
             }
-        }
-
-        private void HandleDesktopRotate()
-        {
-            // Q/E keys for rotation
-            if (Input.GetKey(KeyCode.Q))
-                ApplyRotation(-_keyboardRotateSpeed * Time.deltaTime);
-            if (Input.GetKey(KeyCode.E))
-                ApplyRotation(_keyboardRotateSpeed * Time.deltaTime);
         }
 
         // --- Shared movement helpers ---

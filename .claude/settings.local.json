@@ -3,7 +3,13 @@
     "allow": [
       "Bash(chmod:*)",
       "Bash(/Users/westwater/Projects/three-dee/.g/.claude/skills/game-dev/scripts/unity-test.sh /Users/westwater/Projects/three-dee EditMode)",
-      "Bash(/Users/westwater/Projects/three-dee/.g/.claude/skills/game-dev/scripts/unity-compile.sh /Users/westwater/Projects/three-dee)"
+      "Bash(/Users/westwater/Projects/three-dee/.g/.claude/skills/game-dev/scripts/unity-compile.sh /Users/westwater/Projects/three-dee)",
+      "WebFetch(domain:www.meshy.ai)",
+      "WebFetch(domain:www.tripo3d.ai)",
+      "WebFetch(domain:www.sloyd.ai)",
+      "WebFetch(domain:docs.meshy.ai)",
+      "Bash(mkdir:*)",
+      "Bash(mv:*)"
     ]
   }
 }
