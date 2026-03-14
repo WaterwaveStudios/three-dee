@@ -1,4 +1,5 @@
 using UnityEngine;
+using ThreeDee.Core;
 
 namespace ThreeDee.Grid
 {
@@ -43,11 +44,9 @@ namespace ThreeDee.Grid
             if (renderer != null)
             {
                 bool isLight = (x + z) % 2 == 0;
-                var material = new Material(Shader.Find("Universal Render Pipeline/Lit"));
-                material.color = isLight
+                renderer.material = MaterialHelper.CreateLit(isLight
                     ? new Color(0.45f, 0.65f, 0.35f)
-                    : new Color(0.35f, 0.55f, 0.28f);
-                renderer.material = material;
+                    : new Color(0.35f, 0.55f, 0.28f));
             }
 
             return cell;

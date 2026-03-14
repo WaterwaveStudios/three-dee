@@ -1,4 +1,5 @@
 using UnityEngine;
+using ThreeDee.Core;
 
 namespace ThreeDee.Grid
 {
@@ -14,9 +15,7 @@ namespace ThreeDee.Grid
             var renderer = building.GetComponent<Renderer>();
             if (renderer != null)
             {
-                var material = new Material(Shader.Find("Universal Render Pipeline/Lit"));
-                material.color = color;
-                renderer.material = material;
+                renderer.material = MaterialHelper.CreateLit(color);
             }
 
             return building;
