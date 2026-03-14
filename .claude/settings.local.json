@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(chmod:*)",
+      "Bash(/Users/westwater/Projects/three-dee/.g/.claude/skills/game-dev/scripts/unity-test.sh /Users/westwater/Projects/three-dee EditMode)"
+    ]
+  }
+}
