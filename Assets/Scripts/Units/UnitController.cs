@@ -12,9 +12,17 @@ namespace ThreeDee.Units
         public bool IsMoving { get; private set; }
         public Vector3 MoveDirection { get; private set; }
 
+        private Animator _animator;
+
         public void Init(Vector3 position)
         {
             transform.position = position;
+        }
+
+        private void Start()
+        {
+            _animator = GetComponentInChildren<Animator>();
+            Debug.Log($"[UnitController] Start — GameInput.Instance={(GameInput.Instance != null ? "OK" : "NULL")}  animator={(_animator != null ? _animator.name : "none")}");
         }
 
         private void Update()
@@ -25,10 +33,18 @@ namespace ThreeDee.Units
         private void HandleMovement()
         {
             var input = GameInput.Instance;
-            Vector2 move = input != null ? input.MoveInput : Vector2.zero;
+            if (input == null)
+            {
+                Debug.LogWarning("[UnitController] GameInput.Instance is NULL — cannot move");
+                return;
+            }
+            Vector2 move = input.MoveInput;
+            if (move.sqrMagnitude > 0.01f)
+                Debug.Log($"[UnitController] move={move}  pos={transform.position}");
             var inputDir = CalculateMoveVector(move.x, move.y);
             IsMoving = inputDir.sqrMagnitude > 0.01f;
             MoveDirection = inputDir;
+            _animator?.SetBool("IsMoving", IsMoving);
 
             if (!IsMoving) return;
 

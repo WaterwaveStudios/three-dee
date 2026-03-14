@@ -32,19 +32,41 @@ namespace ThreeDee.Core
 
         private static Transform SpawnUnits(GridManager grid)
         {
-            var explorer = SpawnModel("Models/Units/Meshy_AI_Explorer_s_Adventure_0314142745_texture",
-                "Explorer", grid.GridToWorldPosition(3, 5));
+            // Merged animations model: bakeAxisConversion handles axis flip, so no -90 X needed.
+            // Texture has a different filename so pass it explicitly.
+            var explorer = SpawnModel(
+                "Models/Units/Meshy_AI_Meshy_Merged_Animations",
+                "Explorer",
+                grid.GridToWorldPosition(3, 5),
+                modelRotation: Quaternion.identity,
+                texturePath: "Models/Units/Meshy_AI_texture_0 1");
+
             SpawnModel("Models/Units/Meshy_AI_full_body_3D_cartoon__0314142802_texture",
                 "Soldier", grid.GridToWorldPosition(6, 5));
 
             // Explorer is the player-controlled unit
             if (explorer != null)
             {
+                AttachAnimator(explorer);
                 var unit = explorer.AddComponent<UnitController>();
                 unit.Init(grid.GridToWorldPosition(3, 5));
             }
 
             return explorer != null ? explorer.transform : null;
+        }
+
+        private static void AttachAnimator(GameObject wrapper)
+        {
+            var model = wrapper.transform.Find("Model");
+            if (model == null) return;
+
+            var animator = model.GetComponent<Animator>() ?? model.gameObject.AddComponent<Animator>();
+            animator.applyRootMotion = false;
+            var controller = Resources.Load<RuntimeAnimatorController>("Animations/MeshyMergedAnimations");
+            if (controller != null)
+                animator.runtimeAnimatorController = controller;
+            else
+                Debug.LogWarning("[ThreeDee] AnimatorController not found — reimport the Merged Animations FBX first.");
         }
 
         private static void SetupCameraFollow(IsometricCamera isoCamera, Transform player)
@@ -54,7 +76,9 @@ namespace ThreeDee.Core
             follower.Init(player);
         }
 
-        private static GameObject SpawnModel(string resourcePath, string name, Vector3 gridPosition)
+        private static GameObject SpawnModel(
+            string resourcePath, string name, Vector3 gridPosition,
+            Quaternion? modelRotation = null, string texturePath = null)
         {
             var prefab = Resources.Load<GameObject>(resourcePath);
             if (prefab == null)
@@ -71,13 +95,13 @@ namespace ThreeDee.Core
             instance.name = "Model";
             instance.transform.localPosition = Vector3.zero;
 
-            // Fix Meshy FBX 90-degree X rotation
-            instance.transform.localRotation = Quaternion.Euler(-90f, 0f, 0f);
+            // Default: fix Meshy FBX 90-degree X rotation. Pass Quaternion.identity to skip.
+            instance.transform.localRotation = modelRotation ?? Quaternion.Euler(-90f, 0f, 0f);
 
             instance.SetActive(true);
 
-            // Meshy FBX models have a matching texture PNG — apply with URP Lit
-            var texture = Resources.Load<Texture2D>(resourcePath);
+            // Load texture — use explicit texturePath if provided, otherwise match resourcePath
+            var texture = Resources.Load<Texture2D>(texturePath ?? resourcePath);
             if (texture != null)
             {
                 var shader = Shader.Find("Universal Render Pipeline/Lit")
