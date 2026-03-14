@@ -38,7 +38,7 @@ namespace ThreeDee.Core
                 "Models/Units/Meshy_AI_Meshy_Merged_Animations",
                 "Explorer",
                 grid.GridToWorldPosition(3, 5),
-                modelRotation: Quaternion.identity,
+                modelRotation: Quaternion.Euler(0f, 180f, 0f),
                 texturePath: "Models/Units/Meshy_AI_texture_0 1");
 
             SpawnModel("Models/Units/Meshy_AI_full_body_3D_cartoon__0314142802_texture",
@@ -60,7 +60,9 @@ namespace ThreeDee.Core
             var model = wrapper.transform.Find("Model");
             if (model == null) return;
 
-            var animator = model.GetComponent<Animator>() ?? model.gameObject.AddComponent<Animator>();
+            var animator = model.GetComponent<Animator>();
+            if (animator == null)
+                animator = model.gameObject.AddComponent<Animator>();
             animator.applyRootMotion = false;
             var controller = Resources.Load<RuntimeAnimatorController>("Animations/MeshyMergedAnimations");
             if (controller != null)
@@ -72,6 +74,18 @@ namespace ThreeDee.Core
         private static void SetupCameraFollow(IsometricCamera isoCamera, Transform player)
         {
             if (player == null) return;
+
+            // Cast a ray from the screen centre and shift the camera so it lands on the player.
+            // This works regardless of the camera's isometric rotation angle.
+            var cam = isoCamera.GetComponent<UnityEngine.Camera>();
+            var ray = cam.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f));
+            var groundPlane = new Plane(Vector3.up, Vector3.zero);
+            if (groundPlane.Raycast(ray, out float dist))
+            {
+                var currentLookAt = ray.GetPoint(dist);
+                isoCamera.transform.position += player.position - currentLookAt;
+            }
+
             var follower = isoCamera.gameObject.AddComponent<CameraFollower>();
             follower.Init(player);
         }
@@ -151,7 +165,7 @@ namespace ThreeDee.Core
 
             return IsometricCamera.Create(
                 position: new Vector3(0f, 20f, -15f),
-                orthographicSize: 15f
+                orthographicSize: 7f
             );
         }
     }

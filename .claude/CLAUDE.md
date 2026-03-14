@@ -64,6 +64,13 @@ dotnet test
 - Character rotation: Y-axis only via `Mathf.Atan2` — never use `LookRotation` for upright characters
 - Models in `Assets/Resources/Models/` for `Resources.Load` at runtime
 
+## Animation
+
+- AnimatorController lives in `Assets/Resources/Animations/` — loaded at runtime via `Resources.Load<RuntimeAnimatorController>()`
+- `MeshyMergedAnimationsPostprocessor` (in `Assets/Editor/`) auto-creates the controller from FBX clips on Reimport
+- Always set `animator.applyRootMotion = false` when using manual transform-based movement (UnitController pattern)
+- `UnitController` drives a single `IsMoving` bool parameter on the Animator
+
 ## Asset Pipeline
 
 - **Primary**: Meshy AI for 3D model generation (text/image-to-3D)
@@ -77,6 +84,7 @@ dotnet test
 - Materials use URP Lit shader or custom Shader Graph materials
 - Textures: PNG or TGA, power-of-2 dimensions preferred for mobile
 - **Meshy prompt style**: include "low-poly", "mobile game asset", "isometric game asset", "clean geometry", "stylized" for consistent art direction
+- **Spawning models**: `GameBootstrap.SpawnModel(resourcePath, name, position, modelRotation?, texturePath?)` — pass `modelRotation: Quaternion.identity` for Merged Animations FBX (bakeAxisConversion handles axis flip); pass explicit `texturePath` when texture filename differs from FBX filename
 
 ## Key Concepts
 

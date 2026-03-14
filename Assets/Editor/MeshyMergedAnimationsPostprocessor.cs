@@ -32,6 +32,24 @@ public class MeshyMergedAnimationsPostprocessor : AssetPostprocessor
         Debug.Log($"[MeshyPostprocessor] Applied texture to material '{material.name}'");
     }
 
+    // --- Animation Clip Settings ---
+
+    void OnPostprocessAnimation(GameObject root, AnimationClip clip)
+    {
+        if (assetPath != FbxPath) return;
+
+        bool isLooping = clip.name.ToLower().Contains("walk")
+                      || clip.name.ToLower().Contains("run")
+                      || clip.name.ToLower().Contains("idle");
+
+        if (!isLooping) return;
+
+        var settings = AnimationUtility.GetAnimationClipSettings(clip);
+        settings.loopTime = true;
+        AnimationUtility.SetAnimationClipSettings(clip, settings);
+        Debug.Log($"[MeshyPostprocessor] Set loop on clip '{clip.name}'");
+    }
+
     // --- AnimatorController ---
 
     static void OnPostprocessAllAssets(

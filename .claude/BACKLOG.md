@@ -10,6 +10,8 @@
 - [x] **Mobile Touch Controls** — Pinch-to-zoom, two-finger pan, rotate
 - [x] **Migrate to New Input System** — Replace deprecated Input Manager with Unity Input System package
 - [x] **Player Unit Control** — WASD moves unit with kinematic movement, camera follows, Meshy model rotation fixed
+- [ ] **Fix WASD movement** — Explorer unit not responding to input after model swap; debug logging added (`[UnitController]` in Console), root cause not yet found
+- [ ] **Animation System** — AnimatorController auto-created from FBX clips via AssetPostprocessor; idle/walk wired to `IsMoving` bool; needs movement fix before validation
 
 ## Priority 2 — Core Systems
 

@@ -113,9 +113,57 @@ Remove individual MeshColliders from visual grid cells.
 
 Meshy exports FBX with a separate texture PNG (same filename). At runtime:
 1. Load with `Resources.Load<GameObject>(path)` for FBX
-2. Load with `Resources.Load<Texture2D>(path)` for texture
+2. Load with `Resources.Load<Texture2D>(path)` for texture (note: Merged Animations FBX uses a *different* texture filename — pass it explicitly)
 3. Create a URP Lit material and assign the texture
 4. FBX models may include colliders — remove them before adding your own physics
+
+### FBX Axis Conversion and Rotation
+
+Meshy FBX exports vary by model type:
+- **Standard models** (texture FBX): need `Quaternion.Euler(-90f, 0f, 0f)` applied to the model instance to fix Z-up → Y-up
+- **Merged Animations FBX**: has `bakeAxisConversion: 1` in the import meta — Unity bakes the axis flip automatically. **Do NOT apply -90 X rotation** or the model will fall into the ground. Use `Quaternion.identity`.
+
+Check `bakeAxisConversion` in the FBX `.meta` file to determine which applies.
+
+### Animator Root Motion vs Manual Movement
+
+When using `UnitController`-style manual `transform.position` movement alongside an Animator:
+```csharp
+animator.applyRootMotion = false; // REQUIRED — root motion fights manual movement
+```
+Without this, animation root motion offsets the model child independently from the wrapper, breaking all movement.
+
+### Auto-Creating AnimatorController from FBX Clips
+
+Use `AssetPostprocessor.OnPostprocessAllAssets` to build an AnimatorController when an FBX is imported:
+```csharp
+static void OnPostprocessAllAssets(string[] importedAssets, ...)
+{
+    var clips = AssetDatabase.LoadAllAssetsAtPath(fbxPath)
+        .OfType<AnimationClip>()
+        .Where(c => !c.name.StartsWith("__preview__"))
+        .ToArray();
+    // create AnimatorController.CreateAnimatorControllerAtPath(...)
+}
+```
+Save to `Assets/Resources/Animations/` so it can be loaded at runtime via `Resources.Load<RuntimeAnimatorController>()`.
+Trigger: right-click FBX → Reimport.
+
+## Unity Null vs C# Null (`??` Operator)
+
+Unity overrides `==` so that destroyed/missing components compare equal to `null`. But C#'s `??` operator uses raw reference equality and **bypasses** Unity's null check — missing components slip through and crash on access:
+
+```csharp
+// WRONG — missing Animator passes through ?? and crashes
+var animator = model.GetComponent<Animator>() ?? model.gameObject.AddComponent<Animator>();
+
+// CORRECT — Unity's == catches missing components
+var animator = model.GetComponent<Animator>();
+if (animator == null)
+    animator = model.gameObject.AddComponent<Animator>();
+```
+
+Same applies to `?.` in some contexts. Always use `if (component == null)` for Unity component checks.
 
 ## macOS Trackpad Input
 

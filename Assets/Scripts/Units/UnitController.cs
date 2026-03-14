@@ -51,11 +51,9 @@ namespace ThreeDee.Units
             // Move
             transform.position += inputDir * _moveSpeed * Time.deltaTime;
 
-            // Face movement direction (Y-axis only)
-            float targetAngle = Mathf.Atan2(inputDir.x, inputDir.z) * Mathf.Rad2Deg;
-            var targetRotation = Quaternion.Euler(0f, targetAngle, 0f);
-            transform.rotation = Quaternion.RotateTowards(
-                transform.rotation, targetRotation, _turnSpeed * Time.deltaTime);
+            // Snap to face movement direction instantly (Y-axis only)
+            float angle = Mathf.Atan2(inputDir.x, inputDir.z) * Mathf.Rad2Deg;
+            transform.rotation = Quaternion.Euler(0f, angle, 0f);
         }
 
         public static Vector3 CalculateMoveVector(float horizontal, float vertical)
